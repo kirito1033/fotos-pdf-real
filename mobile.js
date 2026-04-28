@@ -63,47 +63,131 @@ function initPeer() {
   });
 }
 
-function capture() {
+function getCurrentLocation() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude
+        });
+      },
+      (error) => {
+        console.warn("Geolocalización no disponible:", error);
+        resolve(null);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0
+      }
+    );
+  });
+}
+
+async function getPlaceName(latitude, longitude) {
+  try {
+    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`;
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const city =
+      data?.city ||
+      data?.locality ||
+      data?.principalSubdivision ||
+      "Ubicación desconocida";
+
+    const country = data?.countryName || "";
+
+    return [city, country].filter(Boolean).join(", ");
+  } catch (error) {
+    console.error("Error lugar:", error);
+    return "Ubicación no disponible";
+  }
+}
+
+async function capture() {
   if (!conn || conn.open !== true) {
     alert("La conexión con el PC aún no está lista.");
     return;
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = video.videoWidth;
-  canvas.height = video.videoHeight;
+  try {
+    setStatus("obteniendo ubicación y capturando foto...");
 
-  const ctx = canvas.getContext("2d");
-  ctx.drawImage(video, 0, 0);
+    const location = await getCurrentLocation();
+    let place = "Ubicación no disponible";
 
-  const now = new Date();
-  const text = "WEFONE " + now.toLocaleString("es-CO");
+    if (location) {
+      place = await getPlaceName(location.latitude, location.longitude);
+    }
 
-  ctx.font = `bold ${Math.max(20, Math.floor(canvas.width * 0.03))}px Arial`;
-  const pad = 16;
-  const textWidth = ctx.measureText(text).width;
-  const boxWidth = textWidth + pad * 2;
-  const boxHeight = 42;
-  const boxX = 12;
-  const boxY = canvas.height - boxHeight - 12;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-  ctx.fillStyle = "rgba(0,0,0,0.6)";
-  ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(video, 0, 0);
 
-  ctx.fillStyle = "#fff";
-  ctx.textBaseline = "middle";
-  ctx.fillText(text, boxX + pad, boxY + boxHeight / 2);
+    const now = new Date();
+    const fecha = now.toLocaleDateString("es-CO");
+    const hora = now.toLocaleTimeString("es-CO");
 
-  const img = canvas.toDataURL("image/jpeg", 0.9);
+    const lines = [
+      "WEFONE",
+      `Fecha: ${fecha}`,
+      `Hora: ${hora}`,
+      `Lugar: ${place}`
+    ];
 
-  conn.send({
-    type: "photo",
-    image: img
-  });
+    const fontSize = Math.max(20, Math.floor(canvas.width * 0.03));
+    const lineHeight = fontSize + 10;
+    const padding = 16;
+    const boxWidth = Math.min(canvas.width * 0.78, 760);
+    const boxHeight = lines.length * lineHeight + padding * 2;
+    const boxX = 12;
+    const boxY = canvas.height - boxHeight - 12;
 
-  setStatus("foto enviada al PC");
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
+    ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+
+    ctx.fillStyle = "#fff";
+    ctx.strokeStyle = "rgba(0,0,0,0.35)";
+    ctx.lineWidth = 2;
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+
+    lines.forEach((line, index) => {
+      ctx.font = index === 0
+        ? `bold ${fontSize + 4}px Arial`
+        : `bold ${fontSize}px Arial`;
+
+      const x = boxX + padding;
+      const y = boxY + padding + index * lineHeight;
+
+      ctx.strokeText(line, x, y);
+      ctx.fillText(line, x, y);
+    });
+
+    const img = canvas.toDataURL("image/jpeg", 0.9);
+
+    conn.send({
+      type: "photo",
+      image: img
+    });
+
+    setStatus("foto enviada al PC con ubicación");
+  } catch (error) {
+    console.error(error);
+    setStatus("error al capturar foto");
+    alert("No se pudo capturar la foto con ubicación.");
+  }
 }
-
 captureBtn.addEventListener("click", capture);
 
 initPeer();
