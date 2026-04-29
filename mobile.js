@@ -16,9 +16,21 @@ function setStatus(msg) {
 async function startMobileCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: "environment" } },
+      video: {
+        facingMode: { ideal: "environment" },
+        resizeMode: "none"
+      },
       audio: false
     });
+
+    const track = stream.getVideoTracks()[0];
+    const capabilities = track.getCapabilities ? track.getCapabilities() : null;
+
+    if (capabilities && "zoom" in capabilities) {
+      await track.applyConstraints({
+        advanced: [{ zoom: capabilities.zoom.min }]
+      });
+    }
 
     video.srcObject = stream;
     await video.play();
@@ -188,6 +200,7 @@ async function capture() {
     alert("No se pudo capturar la foto con ubicación.");
   }
 }
+
 captureBtn.addEventListener("click", capture);
 
 initPeer();
