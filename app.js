@@ -44,17 +44,57 @@ function renderGallery() {
   photos.forEach((src, index) => {
     const div = document.createElement("div");
     div.className = "photo-item";
+    div.style.position = "relative";
 
     const img = document.createElement("img");
     img.src = src;
     img.alt = `Foto ${index + 1}`;
+    img.style.width = "100%";
+    img.style.borderRadius = "8px";
 
     const meta = document.createElement("div");
     meta.className = "photo-meta";
     meta.textContent = `Foto ${index + 1}`;
+    meta.style.position = "absolute";
+    meta.style.bottom = "8px";
+    meta.style.left = "8px";
+    meta.style.background = "rgba(0,0,0,0.7)";
+    meta.style.color = "#fff";
+    meta.style.padding = "4px 8px";
+    meta.style.borderRadius = "4px";
+    meta.style.fontSize = "12px";
+
+    // BOTÓN DE ELIMINAR INDIVIDUAL
+    const deleteBtn = document.createElement("button");
+    deleteBtn.textContent = "🗑️";
+    deleteBtn.title = "Eliminar esta foto";
+    deleteBtn.style.position = "absolute";
+    deleteBtn.style.top = "8px";
+    deleteBtn.style.right = "8px";
+    deleteBtn.style.background = "#ef4444";
+    deleteBtn.style.color = "#fff";
+    deleteBtn.style.border = "none";
+    deleteBtn.style.borderRadius = "50%";
+    deleteBtn.style.width = "32px";
+    deleteBtn.style.height = "32px";
+    deleteBtn.style.cursor = "pointer";
+    deleteBtn.style.fontSize = "16px";
+    deleteBtn.style.display = "flex";
+    deleteBtn.style.alignItems = "center";
+    deleteBtn.style.justifyContent = "center";
+    deleteBtn.style.boxShadow = "0 2px 4px rgba(0,0,0,0.3)";
+    
+    deleteBtn.addEventListener("click", () => {
+      if (confirm("¿Eliminar esta foto?")) {
+        photos.splice(index, 1);
+        renderGallery();
+        setStatus(`foto eliminida (${photos.length} restantes)`);
+      }
+    });
 
     div.appendChild(img);
     div.appendChild(meta);
+    div.appendChild(deleteBtn);
     gallery.appendChild(div);
   });
 
@@ -314,9 +354,13 @@ async function generatePdf() {
 }
 
 function clearPhotos() {
-  photos = [];
-  renderGallery();
-  setStatus("fotos eliminadas");
+  if (photos.length === 0) return;
+  
+  if (confirm("¿Eliminar TODAS las fotos?")) {
+    photos = [];
+    renderGallery();
+    setStatus("fotos eliminadas");
+  }
 }
 
 startCameraBtn.addEventListener("click", startCamera);
