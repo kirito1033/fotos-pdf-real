@@ -67,3 +67,12 @@ video {
   height: 140px;
   object-fit: cover;
 }
+
+video{
+  width:100%;
+  border-radius:14px;
+  background:#000;
+  aspect-ratio:3/4;
+  object-fit:cover;
+  touch-action:none;
+}

@@ -13,24 +13,20 @@
   <main class="app">
     <header class="topbar">
       <h1>Foto a PDF</h1>
-      <p>Toma fotos desde PC o Android y genera un PDF.</p>
+      <p>Toma fotos desde tu Android y genera un PDF en el PC.</p>
     </header>
 
     <section class="camera-card">
-      <div class="video-wrap">
-        <video id="video" autoplay playsinline muted></video>
-        <canvas id="canvas" class="hidden"></canvas>
-      </div>
-
-      <div id="qrContainer" style="display:none; text-align:center; margin-top:16px;">
-        <p>Escanea este código con tu Android si no tienes cámara en el PC</p>
+      <!-- Ya NO hay video ni canvas aquí -->
+      <div id="qrContainer" style="text-align:center; margin-top:16px;">
+        <p>Escanea este código con tu Android para tomar fotos</p>
         <canvas id="qr"></canvas>
       </div>
 
       <div class="controls">
-        <button id="startCameraBtn" class="btn primary">Abrir cámara</button>
-        <button id="captureBtn" class="btn" disabled>Tomar foto</button>
-        <button id="stopCameraBtn" class="btn danger" disabled>Cerrar cámara</button>
+        <button id="startPeerBtn" class="btn primary">Nuevo QR</button>
+        <button id="captureBtn" class="btn" disabled>Pedir foto</button>
+        <button id="stopPeerBtn" class="btn danger" disabled>Desconectar</button>
       </div>
 
       <div class="pdf-actions">
@@ -38,7 +34,7 @@
         <button id="clearPhotosBtn" class="btn secondary" disabled>Limpiar fotos</button>
       </div>
 
-      <p id="status" class="status">Estado: esperando acción</p>
+      <p id="status" class="status">Estado: esperando conexión del celular</p>
     </section>
 
     <section class="gallery-card">
