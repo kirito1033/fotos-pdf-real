@@ -18,6 +18,24 @@ let pinchStartDistance = null;
 let pinchStartZoom = 1;
 let focusBox = null;
 
+/* ==========================================================
+   UTILIDADES
+========================================================== */
+
+function setStatus(msg) {
+  statusText.textContent = "Estado: " + msg;
+}
+
+function getTouchDistance(touch1, touch2) {
+  const dx = touch2.clientX - touch1.clientX;
+  const dy = touch2.clientY - touch1.clientY;
+  return Math.hypot(dx, dy);
+}
+
+/* ==========================================================
+   INDICADOR VISUAL DE ENFOQUE
+========================================================== */
+
 function showFocusIndicator(x, y) {
   if (!focusBox) {
     focusBox = document.createElement("div");
@@ -51,6 +69,10 @@ function showFocusIndicator(x, y) {
     }
   }, 700);
 }
+
+/* ==========================================================
+   TAP TO FOCUS
+========================================================== */
 
 async function refocusAtPoint(clientX, clientY) {
   if (!videoTrack) return;
@@ -99,7 +121,6 @@ async function refocusAtPoint(clientX, clientY) {
       }
     }
 
-    // fallback: reintentar enfoque continuo si existe soporte parcial
     await videoTrack.applyConstraints({
       advanced: [{ focusMode: "continuous" }],
     });
@@ -108,15 +129,9 @@ async function refocusAtPoint(clientX, clientY) {
   }
 }
 
-function setStatus(msg) {
-  statusText.textContent = "Estado: " + msg;
-}
-
-function getTouchDistance(touch1, touch2) {
-  const dx = touch2.clientX - touch1.clientX;
-  const dy = touch2.clientY - touch1.clientY;
-  return Math.hypot(dx, dy);
-}
+/* ==========================================================
+   ZOOM
+========================================================== */
 
 async function setZoom(newZoom) {
   if (!videoTrack) return;
@@ -135,6 +150,7 @@ async function setZoom(newZoom) {
     await videoTrack.applyConstraints({
       advanced: [{ zoom: clamped }],
     });
+
     currentZoom = clamped;
     setStatus(`cámara activa · zoom ${currentZoom.toFixed(1)}x`);
   } catch (err) {
@@ -142,24 +158,33 @@ async function setZoom(newZoom) {
   }
 }
 
+/* ==========================================================
+   GESTOS (PINCH ZOOM + TAP FOCUS)
+========================================================== */
+
 function initPinchZoom() {
-
+  // Click con mouse
   video.addEventListener("click", async (e) => {
-  showFocusIndicator(e.clientX, e.clientY);
-  await refocusAtPoint(e.clientX, e.clientY);
-});
+    showFocusIndicator(e.clientX, e.clientY);
+    await refocusAtPoint(e.clientX, e.clientY);
+  });
 
+  // Inicio del gesto de zoom
   video.addEventListener(
     "touchstart",
     (e) => {
       if (e.touches.length === 2) {
-        pinchStartDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        pinchStartDistance = getTouchDistance(
+          e.touches[0],
+          e.touches[1]
+        );
         pinchStartZoom = currentZoom;
       }
     },
     { passive: false }
   );
 
+  // Movimiento de zoom
   video.addEventListener(
     "touchmove",
     async (e) => {
@@ -167,30 +192,44 @@ function initPinchZoom() {
 
       e.preventDefault();
 
-      const newDistance = getTouchDistance(e.touches[0], e.touches[1]);
-      const scale = newDistance / pinchStartDistance;
+      const newDistance = getTouchDistance(
+        e.touches[0],
+        e.touches[1]
+      );
 
+      const scale = newDistance / pinchStartDistance;
       const zoomRange = maxZoom - minZoom;
       const sensitivity = 1.2;
 
-      const newZoom = pinchStartZoom + (scale - 1) * zoomRange * sensitivity;
+      const newZoom =
+        pinchStartZoom +
+        (scale - 1) * zoomRange * sensitivity;
+
       await setZoom(newZoom);
     },
     { passive: false }
   );
 
+  // Tap con un dedo para enfocar
   video.addEventListener(
-  "touchend",
-  async (e) => {
-    if (e.changedTouches.length === 1 && pinchStartDistance === null) {
-      const touch = e.changedTouches[0];
-      showFocusIndicator(touch.clientX, touch.clientY);
-      await refocusAtPoint(touch.clientX, touch.clientY);
-    }
-  },
-  { passive: true }
-);
+    "touchend",
+    async (e) => {
+      if (
+        e.changedTouches.length === 1 &&
+        pinchStartDistance === null
+      ) {
+        const touch = e.changedTouches[0];
+        showFocusIndicator(touch.clientX, touch.clientY);
+        await refocusAtPoint(
+          touch.clientX,
+          touch.clientY
+        );
+      }
+    },
+    { passive: true }
+  );
 
+  // Finalizar gesto
   video.addEventListener(
     "touchend",
     () => {
@@ -210,6 +249,10 @@ function initPinchZoom() {
   );
 }
 
+/* ==========================================================
+   CÁMARA DEL CELULAR
+========================================================== */
+
 async function startMobileCamera() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({
@@ -227,6 +270,7 @@ async function startMobileCamera() {
       ? videoTrack.getCapabilities()
       : null;
 
+    // Configurar zoom si está disponible
     if (capabilities && "zoom" in capabilities) {
       minZoom = capabilities.zoom.min ?? 1;
       maxZoom = capabilities.zoom.max ?? 1;
@@ -253,6 +297,10 @@ async function startMobileCamera() {
     alert("No se pudo abrir la cámara del celular.");
   }
 }
+
+/* ==========================================================
+   CONEXIÓN PEERJS
+========================================================== */
 
 function initPeer() {
   if (!peerId) {
@@ -293,53 +341,10 @@ function initPeer() {
   });
 }
 
-function getCurrentLocation() {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(null);
-      return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      (error) => {
-        console.warn("Geolocalización no disponible:", error);
-        resolve(null);
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
-  });
-}
-
-async function getPlaceName(latitude, longitude) {
-  try {
-    const url = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=es`;
-    const response = await fetch(url);
-    const data = await response.json();
-
-    const city =
-      data?.city ||
-      data?.locality ||
-      data?.principalSubdivision ||
-      "Ubicación desconocida";
-
-    const country = data?.countryName || "";
-
-    return [city, country].filter(Boolean).join(", ");
-  } catch (error) {
-    console.error("Error lugar:", error);
-    return "Ubicación no disponible";
-  }
-}
+/* ==========================================================
+   CAPTURA DE FOTO CON MARCA DE AGUA
+   (UBICACIÓN FIJA: BOGOTÁ - COLOMBIA)
+========================================================== */
 
 async function capture() {
   if (!conn || conn.open !== true) {
@@ -348,14 +353,10 @@ async function capture() {
   }
 
   try {
-    setStatus("obteniendo ubicación y capturando foto...");
+    setStatus("capturando foto...");
 
-    const location = await getCurrentLocation();
-    let place = "Ubicación no disponible";
-
-    if (location) {
-      place = await getPlaceName(location.latitude, location.longitude);
-    }
+    // Ubicación fija para evitar demoras del GPS
+    const place = "Bogotá - Colombia";
 
     const canvas = document.createElement("canvas");
     canvas.width = video.videoWidth;
@@ -375,23 +376,32 @@ async function capture() {
       `Lugar: ${place}`
     ];
 
-    const fontSize = Math.max(24, Math.floor(canvas.width * 0.03));
+    const fontSize = Math.max(
+      24,
+      Math.floor(canvas.width * 0.03)
+    );
+
     const lineHeight = fontSize + 10;
     const padding = 16;
     const boxWidth = Math.min(canvas.width * 0.78, 760);
-    const boxHeight = lines.length * lineHeight + padding * 2;
+    const boxHeight =
+      lines.length * lineHeight + padding * 2;
+
     const boxX = 12;
     const boxY = canvas.height - boxHeight - 12;
 
+    // Fondo de la marca de agua
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
 
-    ctx.fillStyle = "#fff";
+    // Configuración del texto
+    ctx.fillStyle = "#ffffff";
     ctx.strokeStyle = "rgba(0,0,0,0.4)";
     ctx.lineWidth = 2;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
 
+    // Dibujar texto
     lines.forEach((line, index) => {
       ctx.font =
         index === 0
@@ -405,20 +415,26 @@ async function capture() {
       ctx.fillText(line, x, y);
     });
 
+    // Convertir imagen a base64
     const img = canvas.toDataURL("image/jpeg", 0.95);
 
+    // Enviar al PC
     conn.send({
       type: "photo",
       image: img
     });
 
-    setStatus("foto enviada al PC con ubicación");
+    setStatus("foto enviada al PC");
   } catch (error) {
     console.error(error);
     setStatus("error al capturar foto");
-    alert("No se pudo capturar la foto con ubicación.");
+    alert("No se pudo capturar la foto.");
   }
 }
+
+/* ==========================================================
+   EVENTOS E INICIALIZACIÓN
+========================================================== */
 
 captureBtn.addEventListener("click", capture);
 
