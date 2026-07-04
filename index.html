@@ -17,7 +17,6 @@
     </header>
 
     <section class="camera-card">
-      <!-- Ya NO hay video ni canvas aquí -->
       <div id="qrContainer" style="text-align:center; margin-top:16px;">
         <p>Escanea este código con tu Android para tomar fotos</p>
         <canvas id="qr"></canvas>
@@ -27,6 +26,17 @@
         <button id="startPeerBtn" class="btn primary">Nuevo QR</button>
         <button id="captureBtn" class="btn" disabled>Pedir foto</button>
         <button id="stopPeerBtn" class="btn danger" disabled>Desconectar</button>
+      </div>
+
+      <div class="file-name-box">
+        <label for="pdfFileName">Título o nombre del archivo PDF</label>
+        <input
+          type="text"
+          id="pdfFileName"
+          placeholder="Ej: evidencia_servicio_001"
+          autocomplete="off"
+        />
+        <small>Si no escribes nada, se usará el nombre predeterminado.</small>
       </div>
 
       <div class="pdf-actions">
