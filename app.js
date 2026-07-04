@@ -2,6 +2,7 @@ const gallery = document.getElementById("gallery");
 const statusText = document.getElementById("status");
 const photoCount = document.getElementById("photoCount");
 const qrCanvas = document.getElementById("qr");
+const pdfFileNameInput = document.getElementById("pdfFileName");
 
 const startPeerBtn = document.getElementById("startPeerBtn");
 const captureBtn = document.getElementById("captureBtn");
@@ -32,8 +33,7 @@ function renderGallery() {
   photoCount.textContent = `${photos.length} foto${photos.length === 1 ? "" : "s"}`;
 
   if (!photos.length) {
-    gallery.innerHTML =
-      `<p style="grid-column:1/-1;color:#6b7280;margin:0;">No hay fotos todavía.</p>`;
+    gallery.innerHTML = `<p style="grid-column:1/-1;color:#6b7280;margin:0;">No hay fotos todavía.</p>`;
     updateButtons();
     return;
   }
@@ -102,14 +102,13 @@ function initPeer() {
     peer.destroy();
     peer = null;
   }
-  conn = null;
 
+  conn = null;
   peer = new Peer();
 
   peer.on("open", async (id) => {
     const basePath = location.pathname.replace("index.html", "");
-    const mobileUrl =
-      `${location.origin}${basePath}mobile.html?peer=${encodeURIComponent(id)}`;
+    const mobileUrl = `${location.origin}${basePath}mobile.html?peer=${encodeURIComponent(id)}`;
 
     await QRCode.toCanvas(qrCanvas, mobileUrl, { width: 220, margin: 2 });
 
@@ -122,7 +121,7 @@ function initPeer() {
 
     conn.on("open", () => {
       setStatus("celular conectado, listo para recibir fotos");
-      captureBtn.disabled = false; // si quieres que el PC pueda pedir foto
+      captureBtn.disabled = false;
       stopPeerBtn.disabled = false;
     });
 
@@ -152,6 +151,20 @@ function initPeer() {
   });
 }
 
+function getDefaultPdfName() {
+  return `wefone_fotos_${new Date()
+    .toISOString()
+    .slice(0, 19)
+    .replace(/[:T]/g, "-")}.pdf`;
+}
+
+function sanitizeFileName(name) {
+  return name
+    .trim()
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "_");
+}
+
 async function generatePdf() {
   if (!photos.length) {
     alert("No hay fotos para generar el PDF.");
@@ -164,6 +177,7 @@ async function generatePdf() {
     unit: "mm",
     format: "a4",
   });
+
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
@@ -201,17 +215,16 @@ async function generatePdf() {
     pdf.addImage(photos[i], "JPEG", fitted.x, fitted.y, fitted.width, fitted.height);
   }
 
-  pdf.save(
-    `wefone_fotos_${new Date()
-      .toISOString()
-      .slice(0, 19)
-      .replace(/[:T]/g, "-")}.pdf`,
-  );
-  setStatus("PDF generado correctamente");
+  const userFileName = sanitizeFileName(pdfFileNameInput.value || "");
+  const finalFileName = userFileName ? `${userFileName}.pdf` : getDefaultPdfName();
+
+  pdf.save(finalFileName);
+  setStatus(`PDF generado correctamente: ${finalFileName}`);
 }
 
 function clearPhotos() {
   if (!photos.length) return;
+
   if (confirm("¿Eliminar TODAS las fotos?")) {
     photos = [];
     renderGallery();
@@ -220,6 +233,7 @@ function clearPhotos() {
 }
 
 startPeerBtn.addEventListener("click", initPeer);
+
 stopPeerBtn.addEventListener("click", () => {
   if (peer) {
     peer.destroy();
@@ -242,6 +256,4 @@ clearPhotosBtn.addEventListener("click", clearPhotos);
 renderGallery();
 setStatus("haz clic en 'Nuevo QR' para iniciar");
 updateButtons();
-
-// Inicial: crea QR de una vez
 initPeer();
